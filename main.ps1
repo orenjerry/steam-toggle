@@ -1,20 +1,27 @@
+# Lock onto the exact file location before asking for Admin
+$scriptPath =$MyInvocation.MyCommand.Definition
+$scriptDir =$PSScriptRoot
+
 # Auto-Elevate to Administrator
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 
 if (-not $isAdmin) {
-    # Relaunch the script with UAC prompt and FORCE the new window to stay open (-NoExit)
-    Start-Process -FilePath "powershell" -ArgumentList "-NoExit -NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
+    # Relaunch the script with UAC prompt and FORCE the new window to stay open
+    Start-Process -FilePath "powershell" -ArgumentList "-NoExit -NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`"" -Verb RunAs
     exit
 }
 
 $ruleName = "Steam-Connection-Block"
 
-# Set up the config file path (saves in the same folder as this script)
-$configPath = Join-Path (Split-Path$PSCommandPath) "steam_path.txt"
+# Set up the config file path (saves in the exact same folder as this script)
+if ([string]::IsNullOrEmpty($scriptDir)) {
+    $scriptDir = Split-Path -Path$scriptPath
+}
+$configPath = Join-Path -Path$scriptDir -ChildPath "steam_path.txt"
 
 # Check if we already have the path saved
-if (Test-Path $configPath) {
-    $steamPath = Get-Content$configPath
+if (Test-Path -Path $configPath) {
+    $steamPath = Get-Content -Path$configPath
 } else {
     Write-Host "First time setup: Please select your steam.exe file in the popup window..." -ForegroundColor Yellow
     
@@ -23,7 +30,7 @@ if (Test-Path $configPath) {
     $openFileDialog = New-Object System.Windows.Forms.OpenFileDialog
     $openFileDialog.Title = "Select steam.exe"
     $openFileDialog.Filter = "Steam Executable (steam.exe)|steam.exe"
-    $openFileDialog.InitialDirectory = "C:\"
+    $openFileDialog.InitialDirectory = "C:\Program Files (x86)\Steam"
     
     # Show the file picker
     $dialogResult =$openFileDialog.ShowDialog()
@@ -41,10 +48,10 @@ if (Test-Path $configPath) {
 }
 
 # Verify the path actually exists
-if (!(Test-Path $steamPath)) {
+if (!(Test-Path -Path $steamPath)) {
     Write-Warning "Could not find steam.exe at '$steamPath'."
     Write-Warning "Deleting saved config so you can try again next time..."
-    Remove-Item $configPath -ErrorAction SilentlyContinue
+    Remove-Item -Path $configPath -ErrorAction SilentlyContinue
     Read-Host "Press Enter to close..."
     exit
 }
