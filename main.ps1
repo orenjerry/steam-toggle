@@ -23,7 +23,7 @@ if (Test-Path $configPath) {
     $openFileDialog = New-Object System.Windows.Forms.OpenFileDialog
     $openFileDialog.Title = "Select steam.exe"
     $openFileDialog.Filter = "Steam Executable (steam.exe)|steam.exe"
-    $openFileDialog.InitialDirectory = "C:\Program Files (x86)\Steam"
+    $openFileDialog.InitialDirectory = "C:\"
     
     # Show the file picker
     $dialogResult =$openFileDialog.ShowDialog()
