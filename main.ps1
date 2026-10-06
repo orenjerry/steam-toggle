@@ -8,11 +8,43 @@ if (-not $isAdmin) {
 }
 
 $ruleName = "Steam-Connection-Block"
-# Update this path if you installed Steam on a different drive
-$steamPath = "C:\Program Files (x86)\Steam\steam.exe" 
 
+# Set up the config file path (saves in the same folder as this script)
+$configPath = Join-Path (Split-Path$PSCommandPath) "steam_path.txt"
+
+# Check if we already have the path saved
+if (Test-Path $configPath) {
+    $steamPath = Get-Content$configPath
+} else {
+    Write-Host "First time setup: Please select your steam.exe file in the popup window..." -ForegroundColor Yellow
+    
+    # Load Windows Forms to show a file picker UI
+    Add-Type -AssemblyName System.Windows.Forms
+    $openFileDialog = New-Object System.Windows.Forms.OpenFileDialog
+    $openFileDialog.Title = "Select steam.exe"
+    $openFileDialog.Filter = "Steam Executable (steam.exe)|steam.exe"
+    $openFileDialog.InitialDirectory = "C:\Program Files (x86)\Steam"
+    
+    # Show the file picker
+    $dialogResult =$openFileDialog.ShowDialog()
+    
+    if ($dialogResult -eq [System.Windows.Forms.DialogResult]::OK) {
+        $steamPath =$openFileDialog.FileName
+        # Save the chosen path to a text file so we don't ask again
+        Set-Content -Path $configPath -Value$steamPath
+        Write-Host "Saved Steam location to: $configPath" -ForegroundColor Green
+    } else {
+        Write-Warning "No file selected. Cannot continue."
+        Read-Host "Press Enter to close..."
+        exit
+    }
+}
+
+# Verify the path actually exists
 if (!(Test-Path $steamPath)) {
-    Write-Warning "Could not find steam.exe at $steamPath. Please update the path in the script."
+    Write-Warning "Could not find steam.exe at '$steamPath'."
+    Write-Warning "Deleting saved config so you can try again next time..."
+    Remove-Item $configPath -ErrorAction SilentlyContinue
     Read-Host "Press Enter to close..."
     exit
 }
@@ -23,7 +55,7 @@ $outboundRule = Get-NetFirewallRule -DisplayName "$ruleName-Outbound" -ErrorActi
 
 if (!$inboundRule -or !$outboundRule) {
     # Create the rules and enable them (Blocks connection)
-    Write-Host "First run: Creating firewall rules..." -ForegroundColor Cyan
+    Write-Host "Creating firewall rules..." -ForegroundColor Cyan
     New-NetFirewallRule -DisplayName "$ruleName-Inbound" -Direction Inbound -Program $steamPath -Action Block -Profile Any -Enabled True | Out-Null
     New-NetFirewallRule -DisplayName "$ruleName-Outbound" -Direction Outbound -Program $steamPath -Action Block -Profile Any -Enabled True | Out-Null
     Write-Host "Steam connection is now BLOCKED." -ForegroundColor Red
